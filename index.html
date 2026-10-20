@@ -1,31 +1,548 @@
+
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<!-- 웹페이지 제목: 브라우저 탭에 표시됨 -->
 <title>물질 탐정 AI | 우리 주변 물체의 물질 찾기</title>
+
 <style>
-:root{font-family:system-ui,'Malgun Gothic',sans-serif;color:#183047;background:#f4f8fb}*{box-sizing:border-box}body{margin:0}.shell{max-width:780px;margin:36px auto;padding:0 18px}header{text-align:center;margin-bottom:26px}h1{font-size:clamp(28px,5vw,40px);margin:8px 0}header p{color:#607487}.tag{display:inline-block;background:#dff5ed;color:#116b50;padding:7px 14px;border-radius:20px;font-weight:700;font-size:13px}.panel{background:white;border-radius:24px;box-shadow:0 10px 36px #244b6c14;padding:clamp(20px,5vw,40px)}.steps{display:flex;gap:8px;margin-bottom:26px}.step{flex:1;height:8px;border-radius:8px;background:#e2eaf0}.step.active{background:#20a67b}.eyebrow{font-size:14px;font-weight:800;color:#168567}h2{font-size:26px;margin:10px 0}p{line-height:1.65}.muted{color:#607487}.drop{border:2px dashed #a9c7d6;background:#f8fbfd;border-radius:18px;padding:22px;text-align:center;margin:20px 0}.preview{width:100%;max-height:300px;object-fit:contain;border-radius:12px;display:none;margin:10px auto}.buttons{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.btn{background:#138b70;color:#fff;border:0;border-radius:12px;padding:13px 20px;font-weight:800;font-size:16px;cursor:pointer}.btn.secondary{background:#e9f1f5;color:#23445b}.btn:disabled{opacity:.4;cursor:not-allowed}.choices{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}.choice{background:#f4f8fb;border:2px solid #dce7ee;color:#183047;border-radius:16px;padding:20px 8px;font-size:18px;font-weight:750;cursor:pointer}.choice.selected{background:#e4f7ef;border-color:#159b75}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:28px}.result{background:#effaf5;padding:20px;border-radius:16px;margin:18px 0}.barrow{display:flex;justify-content:space-between;font-size:14px;margin:14px 0 5px}.track{height:12px;background:#e2eaf0;border-radius:10px;overflow:hidden}.fill{height:100%;background:#19a57c;border-radius:10px}.notice{font-size:13px;color:#617787;margin-top:20px}.error{color:#b23b3b}.hide{display:none!important}video{width:100%;max-height:300px;border-radius:12px;background:#111;object-fit:contain}input[type=file]{display:none}@media(max-width:480px){.shell{margin:20px auto}.panel{border-radius:18px}.choice{padding:16px 5px}}
+/* ===== 1. 웹페이지의 기본 디자인 ===== */
+/* 글꼴, 배경색, 글자색 등을 설정함 */
+:root{font-family:system-ui,'Malgun Gothic',sans-serif;color:#183047;background:#f4f8fb}
+*{box-sizing:border-box}
+body{margin:0}
+
+/* 화면의 전체 너비와 배치를 설정함 */
+.shell{max-width:780px;margin:36px auto;padding:0 18px}
+header{text-align:center;margin-bottom:26px}
+h1{font-size:clamp(28px,5vw,40px);margin:8px 0}
+header p{color:#607487}
+
+/* 학년 및 교과 안내 표시 */
+.tag{display:inline-block;background:#dff5ed;color:#116b50;padding:7px 14px;border-radius:20px;font-weight:700;font-size:13px}
+
+/* 활동 내용을 담는 흰색 카드 */
+.panel{background:white;border-radius:24px;box-shadow:0 10px 36px #244b6c14;padding:clamp(20px,5vw,40px)}
+
+/* 3단계 활동 진행 상태 표시 */
+.steps{display:flex;gap:8px;margin-bottom:26px}
+.step{flex:1;height:8px;border-radius:8px;background:#e2eaf0}
+.step.active{background:#20a67b}
+
+/* 제목과 설명 문구 */
+.eyebrow{font-size:14px;font-weight:800;color:#168567}
+h2{font-size:26px;margin:10px 0}
+p{line-height:1.65}
+.muted{color:#607487}
+
+/* 사진 업로드 및 촬영 영역 */
+.drop{border:2px dashed #a9c7d6;background:#f8fbfd;border-radius:18px;padding:22px;text-align:center;margin:20px 0}
+.preview{width:100%;max-height:300px;object-fit:contain;border-radius:12px;display:none;margin:10px auto}
+
+/* 버튼 디자인 */
+.buttons{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn{background:#138b70;color:#fff;border:0;border-radius:12px;padding:13px 20px;font-weight:800;font-size:16px;cursor:pointer}
+.btn.secondary{background:#e9f1f5;color:#23445b}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* 학생이 물질을 선택하는 4개의 버튼 */
+.choices{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
+.choice{background:#f4f8fb;border:2px solid #dce7ee;color:#183047;border-radius:16px;padding:20px 8px;font-size:18px;font-weight:750;cursor:pointer}
+.choice.selected{background:#e4f7ef;border-color:#159b75}
+
+/* 이전 / 다음 버튼 배치 */
+.footer{display:flex;justify-content:space-between;gap:12px;margin-top:28px}
+
+/* AI 분석 결과를 보여주는 영역 */
+.result{background:#effaf5;padding:20px;border-radius:16px;margin:18px 0}
+
+/* AI 예측 확률을 막대그래프로 표시 */
+.barrow{display:flex;justify-content:space-between;font-size:14px;margin:14px 0 5px}
+.track{height:12px;background:#e2eaf0;border-radius:10px;overflow:hidden}
+.fill{height:100%;background:#19a57c;border-radius:10px}
+
+/* 안내 문구 및 오류 메시지 */
+.notice{font-size:13px;color:#617787;margin-top:20px}
+.error{color:#b23b3b}
+
+/* 필요한 경우 화면 요소 숨기기 */
+.hide{display:none!important}
+
+/* 카메라 영상 크기 */
+video{width:100%;max-height:300px;border-radius:12px;background:#111;object-fit:contain}
+
+/* 기본 파일 선택 버튼은 숨기고 직접 디자인한 버튼을 사용함 */
+input[type=file]{display:none}
+
+/* 스마트폰처럼 화면이 좁은 기기에서도 보기 편하도록 설정 */
+@media(max-width:480px){
+  .shell{margin:20px auto}
+  .panel{border-radius:18px}
+  .choice{padding:16px 5px}
+}
 </style>
 </head>
-<body><main class="shell"><header><span class="tag">초등 3학년 과학 · 물체와 물질</span><h1>🔎 물질 탐정 AI</h1><p>내 생각과 인공지능의 생각을 비교해 보아요!</p></header><section class="panel"><div class="steps"><div class="step active"></div><div class="step"></div><div class="step"></div></div><div id="page"></div><div class="footer"><button id="back" class="btn secondary">← 이전</button><button id="next" class="btn">다음 →</button></div><p id="status" class="notice" role="status" aria-live="polite">AI 모델을 준비하고 있어요…</p></section></main>
+
+<body>
+<main class="shell">
+
+  <!-- ===== 2. 웹앱 상단 제목 ===== -->
+  <header>
+    <span class="tag">초등 3학년 과학 · 물체와 물질</span>
+    <h1>🔎 물질 탐정 AI</h1>
+    <p>내 생각과 인공지능의 생각을 비교해 보아요!</p>
+  </header>
+
+  <section class="panel">
+
+    <!-- 활동이 3단계 중 어디까지 진행되었는지 표시함 -->
+    <div class="steps">
+      <div class="step active"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+    </div>
+
+    <!-- 현재 단계에 따라 화면 내용이 바뀌는 영역 -->
+    <div id="page"></div>
+
+    <!-- 이전 단계 / 다음 단계 이동 버튼 -->
+    <div class="footer">
+      <button id="back" class="btn secondary">← 이전</button>
+      <button id="next" class="btn">다음 →</button>
+    </div>
+
+    <!-- AI 모델 준비 상태 및 오류 메시지를 표시함 -->
+    <p id="status" class="notice" role="status" aria-live="polite">
+      AI 모델을 준비하고 있어요…
+    </p>
+
+  </section>
+</main>
+
+<!-- ===== 3. AI 모델 실행에 필요한 라이브러리 연결 ===== -->
+<!-- TensorFlow.js: 웹브라우저에서 인공지능 모델을 실행하는 도구 -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+<!-- Teachable Machine: 직접 학습시킨 이미지 분류 모델을 불러오는 도구 -->
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
 <script>
+
+/* ===== 4. AI 모델 및 기본 설정 ===== */
+
+// 직접 제작한 Teachable Machine 이미지 분류 모델의 주소
 const MODEL_URL='https://teachablemachine.withgoogle.com/models/gWLQCybIp/';
+
+// AI의 최고 예측 확률이 70% 미만이면 '잘 모르겠어요'라고 표시함
+// 주의: 이 기준은 웹앱에서 정한 규칙이며, 모델 자체의 학습 설정은 아님
 const THRESHOLD=0.70;
-const names=['플라스틱','금속','나무','유리'];const english=['plastic','metal','wood','glass'];
-let model=null,step=0,img=null,guess=null,stream=null,predictions=null;
-const page=document.querySelector('#page'),status=document.querySelector('#status'),next=document.querySelector('#next'),back=document.querySelector('#back');
-function norm(s){const t=String(s).toLowerCase().trim();return english.findIndex((v,i)=>t===v||t===names[i]||t.includes(v)||t.includes(names[i]));}
-function friendly(s){const n=norm(s);return n<0?s:names[n];}
-function updateButtons(){back.disabled=step===0;next.textContent=step===2?'처음부터 ↺':'다음 →';next.disabled=(step===0&&!img)||(step===1&&guess===null);document.querySelectorAll('.step').forEach((el,i)=>el.classList.toggle('active',i<=step));}
-function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
-function useImage(file){if(!file||!file.type.startsWith('image/')){status.textContent='이미지 파일을 선택해 주세요.';return;}const url=URL.createObjectURL(file);const image=new Image();image.onload=()=>{img=image;stopCamera();render();URL.revokeObjectURL(url);status.textContent='사진이 준비됐어요.';};image.onerror=()=>{URL.revokeObjectURL(url);status.textContent='사진을 열지 못했어요.';};image.src=url;}
-function render(){updateButtons();if(step===0){page.innerHTML=`<div class="eyebrow">STEP 1 · 관찰하기</div><h2>물체를 보여주세요!</h2><p class="muted">물체의 주된 물질은 무엇일까요? 사진을 찍거나 업로드해 보세요.</p><div class="drop"><img id="preview" class="preview" alt="선택한 물체 사진"><video id="video" class="hide" autoplay playsinline muted></video><p id="placeholder">📷 관찰할 물체를 준비해 주세요!</p><div class="buttons"><button class="btn secondary" id="camera">카메라 켜기</button><button class="btn secondary" id="capture" hidden>사진 찍기</button><label for="file" class="btn">사진 업로드</label><input type="file" id="file" accept="image/*"></div></div>`;const preview=document.querySelector('#preview');if(img){preview.src=img.src;preview.style.display='block';document.querySelector('#placeholder').hidden=true;}document.querySelector('#file').onchange=e=>useImage(e.target.files[0]);document.querySelector('#camera').onclick=async()=>{try{stopCamera();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});const video=document.querySelector('#video');video.srcObject=stream;video.classList.remove('hide');document.querySelector('#capture').hidden=false;document.querySelector('#placeholder').hidden=true;preview.style.display='none';status.textContent='물체를 화면에 맞추고 사진 찍기를 누르세요.';}catch(e){status.textContent='카메라를 사용할 수 없어요. 브라우저 권한을 확인하거나 사진을 업로드해 주세요.';}};document.querySelector('#capture').onclick=()=>{const video=document.querySelector('#video');if(!video.videoWidth)return;const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);canvas.toBlob(useImage,'image/jpeg',.92);};}
-else if(step===1){page.innerHTML=`<div class="eyebrow">STEP 2 · 예상하기</div><h2>나는 이렇게 생각해요!</h2><p class="muted">사진 속 물체를 이루는 주된 물질을 골라 보세요.</p><div class="choices">${names.map((n,i)=>`<button class="choice ${guess===i?'selected':''}" data-id="${i}" aria-pressed="${guess===i}">${['🧴','🥄','🪵','🥛'][i]} ${n}</button>`).join('')}</div><p class="notice">AI의 결과를 보기 전에 내 생각을 먼저 선택해요.</p>`;document.querySelectorAll('.choice').forEach(el=>el.onclick=()=>{guess=Number(el.dataset.id);render();});}
-else{const best=predictions?.[0];const bestIndex=best?norm(best.className):-1;const uncertain=!!best&&best.probability<THRESHOLD;const agree=!!best&&!uncertain&&bestIndex>=0&&bestIndex===guess;page.innerHTML=`<div class="eyebrow">STEP 3 · 비교하기</div><h2>AI는 이렇게 생각했어요!</h2><div class="result"><p>🙋 나의 예상: <strong>${names[guess]}</strong></p><p>🤖 AI의 예상: <strong>${!best?'분석 중…':uncertain?'🤔 잘 모르겠어요':friendly(best.className)}</strong></p><p><strong>${!best?'잠시 기다려 주세요.':uncertain?'어떻게 하면 AI가 더 잘 판단할 수 있을까요? 사진의 각도나 밝기를 바꿔 다시 관찰해 보세요.':bestIndex<0?'AI가 학습한 클래스 이름을 확인해 보세요.':agree?'나와 AI의 생각이 같아요!':'나와 AI의 생각이 달라요!'}</strong></p></div><h3>AI의 예측 확률</h3><div id="bars">${(predictions||[]).map(p=>`<div class="barrow"><span>${friendly(p.className)}</span><strong>${(p.probability*100).toFixed(1)}%</strong></div><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,p.probability*100))}%"></div></div>`).join('')}</div><p class="notice">AI의 예측 확률은 실제 물질일 확률이나 정답을 보장하지 않아요. 겉모습만으로 재질을 알기 어려운 물체도 있어요.</p>`;}}
-next.onclick=async()=>{if(step===2){step=0;img=null;guess=null;predictions=null;render();return;}if(step===0&&!img||step===1&&guess===null)return;step++;render();if(step===2){if(!model){status.textContent='모델을 불러오는 중이에요. 잠시 기다려 주세요.';await loadModel();}if(model){try{predictions=(await model.predict(img)).sort((a,b)=>b.probability-a.probability);status.textContent='분석을 완료했어요.';render();}catch(e){status.textContent='예측 중 문제가 발생했어요: '+e.message;}}}};
-back.onclick=()=>{if(step>0){step--;render();}};
-async function loadModel(){try{if(!window.tmImage)throw new Error('AI 라이브러리를 불러오지 못했어요.');model=await tmImage.load(MODEL_URL+'model.json',MODEL_URL+'metadata.json');status.textContent='AI 모델 준비 완료!';}catch(e){status.textContent='AI 모델을 불러오지 못했어요. 인터넷 연결과 모델 공개 상태를 확인해 주세요. ('+e.message+')';}}
-render();loadModel();window.addEventListener('pagehide',stopCamera);
-</script></body></html>
+
+// AI가 분류하는 네 가지 물질
+const names=['플라스틱','금속','나무','유리'];
+
+// Teachable Machine에서 사용한 영어 클래스 이름
+const english=['plastic','metal','wood','glass'];
+
+/* ===== 5. 활동 진행에 필요한 변수 ===== */
+
+let model=null;        // 불러온 AI 모델
+let step=0;            // 현재 단계: 0=관찰, 1=예상, 2=비교
+let img=null;          // 학생이 촬영하거나 업로드한 사진
+let guess=null;        // 학생이 예상한 물질
+let stream=null;       // 카메라 영상
+let predictions=null;  // AI가 예측한 결과
+
+// HTML 화면의 주요 요소를 연결함
+const page=document.querySelector('#page');
+const status=document.querySelector('#status');
+const next=document.querySelector('#next');
+const back=document.querySelector('#back');
+
+/* ===== 6. 물질 이름을 비교하기 위한 함수 ===== */
+
+// AI가 반환한 클래스 이름을 번호로 바꿈
+// 예: plastic → 0, metal → 1, wood → 2, glass → 3
+function norm(s){
+  const t=String(s).toLowerCase().trim();
+  return english.findIndex((v,i)=>
+    t===v||t===names[i]||t.includes(v)||t.includes(names[i])
+  );
+}
+
+// 영어 클래스 이름을 학생에게 익숙한 한국어 이름으로 바꿈
+function friendly(s){
+  const n=norm(s);
+  return n<0?s:names[n];
+}
+
+/* ===== 7. 단계별 이동 버튼 설정 ===== */
+
+function updateButtons(){
+
+  // 첫 단계에서는 이전 버튼을 누를 수 없음
+  back.disabled=step===0;
+
+  // 마지막 단계에서는 다음 버튼 대신 처음부터 버튼을 표시함
+  next.textContent=step===2?'처음부터 ↺':'다음 →';
+
+  // 사진을 준비하지 않았거나 물질을 선택하지 않으면 다음으로 이동할 수 없음
+  // guess===null로 검사하여 첫 번째 선택지인 플라스틱(번호 0)도 정상 처리함
+  next.disabled=(step===0&&!img)||(step===1&&guess===null);
+
+  // 현재 진행한 단계까지 진행 막대를 초록색으로 표시함
+  document.querySelectorAll('.step').forEach((el,i)=>
+    el.classList.toggle('active',i<=step)
+  );
+}
+
+/* ===== 8. 카메라 종료 함수 ===== */
+
+// 사진 촬영을 마치거나 화면을 벗어날 때 카메라 사용을 종료함
+function stopCamera(){
+  if(stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream=null;
+  }
+}
+
+/* ===== 9. 사진 업로드 및 촬영 사진 처리 ===== */
+
+function useImage(file){
+
+  // 이미지 파일이 아니면 안내 메시지를 표시함
+  if(!file||!file.type.startsWith('image/')){
+    status.textContent='이미지 파일을 선택해 주세요.';
+    return;
+  }
+
+  // 선택한 사진을 웹브라우저에서 사용할 수 있는 주소로 변환함
+  const url=URL.createObjectURL(file);
+  const image=new Image();
+
+  // 사진을 성공적으로 불러온 경우
+  image.onload=()=>{
+    img=image;
+    stopCamera();
+    render();
+    URL.revokeObjectURL(url);
+    status.textContent='사진이 준비됐어요.';
+  };
+
+  // 사진을 불러오지 못한 경우
+  image.onerror=()=>{
+    URL.revokeObjectURL(url);
+    status.textContent='사진을 열지 못했어요.';
+  };
+
+  image.src=url;
+}
+
+/* ===== 10. 단계에 따라 화면을 바꾸는 핵심 함수 ===== */
+
+function render(){
+
+  updateButtons();
+
+  /* ----- STEP 1. 관찰하기 ----- */
+  if(step===0){
+
+    // 사진 촬영 또는 업로드 화면을 표시함
+    page.innerHTML=`
+      <div class="eyebrow">STEP 1 · 관찰하기</div>
+      <h2>물체를 보여주세요!</h2>
+      <p class="muted">물체의 주된 물질은 무엇일까요? 사진을 찍거나 업로드해 보세요.</p>
+
+      <div class="drop">
+        <img id="preview" class="preview" alt="선택한 물체 사진">
+        <video id="video" class="hide" autoplay playsinline muted></video>
+
+        <p id="placeholder">📷 관찰할 물체를 준비해 주세요!</p>
+
+        <div class="buttons">
+          <button class="btn secondary" id="camera">카메라 켜기</button>
+          <button class="btn secondary" id="capture" hidden>사진 찍기</button>
+          <label for="file" class="btn">사진 업로드</label>
+          <input type="file" id="file" accept="image/*">
+        </div>
+      </div>
+    `;
+
+    const preview=document.querySelector('#preview');
+
+    // 이미 사진을 선택했다면 미리보기 화면에 표시함
+    if(img){
+      preview.src=img.src;
+      preview.style.display='block';
+      document.querySelector('#placeholder').hidden=true;
+    }
+
+    // 학생이 파일을 선택하면 사진을 불러옴
+    document.querySelector('#file').onchange=e=>
+      useImage(e.target.files[0]);
+
+    // 카메라 켜기 버튼을 누른 경우
+    document.querySelector('#camera').onclick=async()=>{
+
+      try{
+        stopCamera();
+
+        // 기기의 카메라 사용 권한을 요청함
+        // 스마트폰에서는 가능한 경우 후면 카메라를 사용함
+        stream=await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:'environment'},
+          audio:false
+        });
+
+        const video=document.querySelector('#video');
+        video.srcObject=stream;
+        video.classList.remove('hide');
+
+        // 사진 찍기 버튼을 표시함
+        document.querySelector('#capture').hidden=false;
+        document.querySelector('#placeholder').hidden=true;
+        preview.style.display='none';
+
+        status.textContent='물체를 화면에 맞추고 사진 찍기를 누르세요.';
+
+      }catch(e){
+        // 카메라 권한이 없거나 사용할 수 없는 경우
+        status.textContent='카메라를 사용할 수 없어요. 브라우저 권한을 확인하거나 사진을 업로드해 주세요.';
+      }
+    };
+
+    // 사진 찍기 버튼을 누르면 카메라의 현재 화면을 사진으로 저장함
+    document.querySelector('#capture').onclick=()=>{
+
+      const video=document.querySelector('#video');
+
+      // 카메라 영상이 준비되지 않았다면 촬영하지 않음
+      if(!video.videoWidth)return;
+
+      // 카메라 화면을 이미지로 변환하기 위한 임시 캔버스
+      const canvas=document.createElement('canvas');
+      canvas.width=video.videoWidth;
+      canvas.height=video.videoHeight;
+
+      canvas.getContext('2d').drawImage(video,0,0);
+
+      // 촬영한 사진을 이미지 파일로 변환하여 사용함
+      canvas.toBlob(useImage,'image/jpeg',.92);
+    };
+  }
+
+  /* ----- STEP 2. 학생이 물질 예상하기 ----- */
+  else if(step===1){
+
+    // AI 결과를 보기 전에 학생이 자신의 생각을 선택하도록 함
+    page.innerHTML=`
+      <div class="eyebrow">STEP 2 · 예상하기</div>
+      <h2>나는 이렇게 생각해요!</h2>
+      <p class="muted">사진 속 물체를 이루는 주된 물질을 골라 보세요.</p>
+
+      <div class="choices">
+        ${names.map((n,i)=>`
+          <button
+            class="choice ${guess===i?'selected':''}"
+            data-id="${i}"
+            aria-pressed="${guess===i}">
+            ${['🧴','🥄','🪵','🥛'][i]} ${n}
+          </button>
+        `).join('')}
+      </div>
+
+      <p class="notice">
+        AI의 결과를 보기 전에 내 생각을 먼저 선택해요.
+      </p>
+    `;
+
+    // 학생이 선택한 물질 번호를 guess 변수에 저장함
+    document.querySelectorAll('.choice').forEach(el=>
+      el.onclick=()=>{
+        guess=Number(el.dataset.id);
+        render();
+      }
+    );
+  }
+
+  /* ----- STEP 3. 학생의 생각과 AI 결과 비교하기 ----- */
+  else{
+
+    // AI가 예측한 결과 중 확률이 가장 높은 물질
+    const best=predictions?.[0];
+
+    // AI가 예측한 물질을 번호로 변환함
+    const bestIndex=best?norm(best.className):-1;
+
+    // 가장 높은 예측 확률이 70% 미만인지 확인함
+    const uncertain=!!best&&best.probability<THRESHOLD;
+
+    // 학생의 예상과 AI의 예상이 일치하는지 확인함
+    const agree=!!best&&!uncertain&&bestIndex>=0&&bestIndex===guess;
+
+    // 학생의 예상, AI의 예상, 예측 확률을 화면에 표시함
+    page.innerHTML=`
+      <div class="eyebrow">STEP 3 · 비교하기</div>
+      <h2>AI는 이렇게 생각했어요!</h2>
+
+      <div class="result">
+        <p>🙋 나의 예상: <strong>${names[guess]}</strong></p>
+
+        <p>🤖 AI의 예상:
+          <strong>
+            ${!best
+              ?'분석 중…'
+              :uncertain
+                ?'🤔 잘 모르겠어요'
+                :friendly(best.className)}
+          </strong>
+        </p>
+
+        <p>
+          <strong>
+            ${!best
+              ?'잠시 기다려 주세요.'
+              :uncertain
+                ?'어떻게 하면 AI가 더 잘 판단할 수 있을까요? 사진의 각도나 밝기를 바꿔 다시 관찰해 보세요.'
+                :bestIndex<0
+                  ?'AI가 학습한 클래스 이름을 확인해 보세요.'
+                  :agree
+                    ?'나와 AI의 생각이 같아요!'
+                    :'나와 AI의 생각이 달라요!'}
+          </strong>
+        </p>
+      </div>
+
+      <h3>AI의 예측 확률</h3>
+
+      <!-- 네 가지 물질의 예측 확률을 막대그래프로 나타냄 -->
+      <div id="bars">
+        ${(predictions||[]).map(p=>`
+          <div class="barrow">
+            <span>${friendly(p.className)}</span>
+            <strong>${(p.probability*100).toFixed(1)}%</strong>
+          </div>
+
+          <div class="track">
+            <div
+              class="fill"
+              style="width:${Math.max(0,Math.min(100,p.probability*100))}%">
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="notice">
+        AI의 예측 확률은 실제 물질일 확률이나 정답을 보장하지 않아요.
+        겉모습만으로 재질을 알기 어려운 물체도 있어요.
+      </p>
+    `;
+  }
+}
+
+/* ===== 11. 다음 버튼을 눌렀을 때의 동작 ===== */
+
+next.onclick=async()=>{
+
+  // 마지막 단계에서 버튼을 누르면 처음 단계로 돌아감
+  if(step===2){
+    step=0;
+    img=null;
+    guess=null;
+    predictions=null;
+    render();
+    return;
+  }
+
+  // 사진이나 예상 답을 선택하지 않았다면 이동하지 않음
+  if(step===0&&!img||step===1&&guess===null)return;
+
+  // 다음 단계로 이동함
+  step++;
+  render();
+
+  // STEP 3에 도착하면 AI가 사진을 분석함
+  if(step===2){
+
+    // 아직 모델을 불러오지 못했다면 다시 불러오기를 시도함
+    if(!model){
+      status.textContent='모델을 불러오는 중이에요. 잠시 기다려 주세요.';
+      await loadModel();
+    }
+
+    if(model){
+      try{
+
+        // 업로드한 사진을 AI 모델에 입력하여 예측 결과를 얻음
+        predictions=await model.predict(img);
+
+        // 예측 확률이 높은 순서대로 결과를 정렬함
+        predictions.sort((a,b)=>b.probability-a.probability);
+
+        status.textContent='분석을 완료했어요.';
+
+        // 분석 결과를 화면에 다시 표시함
+        render();
+
+      }catch(e){
+        // AI 분석 중 오류가 발생하면 메시지를 표시함
+        status.textContent='예측 중 문제가 발생했어요: '+e.message;
+      }
+    }
+  }
+};
+
+/* ===== 12. 이전 버튼을 눌렀을 때의 동작 ===== */
+
+back.onclick=()=>{
+
+  // 현재 단계가 첫 번째 단계가 아니라면 이전으로 이동함
+  if(step>0){
+    step--;
+    render();
+  }
+};
+
+/* ===== 13. Teachable Machine 모델 불러오기 ===== */
+
+async function loadModel(){
+
+  try{
+
+    // AI 라이브러리가 정상적으로 연결되었는지 확인함
+    if(!window.tmImage){
+      throw new Error('AI 라이브러리를 불러오지 못했어요.');
+    }
+
+    // Teachable Machine에서 학습시킨 모델과 클래스 정보를 불러옴
+    model=await tmImage.load(
+      MODEL_URL+'model.json',
+      MODEL_URL+'metadata.json'
+    );
+
+    status.textContent='AI 모델 준비 완료!';
+
+  }catch(e){
+
+    // 인터넷 연결 또는 모델 공개 상태 등에 문제가 있을 때 안내함
+    status.textContent=
+      'AI 모델을 불러오지 못했어요. 인터넷 연결과 모델 공개 상태를 확인해 주세요. ('+e.message+')';
+  }
+}
+
+/* ===== 14. 웹앱 실행 ===== */
+
+// 웹페이지가 열리면 첫 번째 활동 화면을 표시함
+render();
+
+// 동시에 Teachable Machine AI 모델을 불러옴
+loadModel();
+
+// 학생이 웹페이지를 벗어나면 카메라 사용을 종료함
+window.addEventListener('pagehide',stopCamera);
+
+</script>
+</body>
+</html>
