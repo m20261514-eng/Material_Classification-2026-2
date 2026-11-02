@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 물질 탐정 | 모델 평가</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+<style>
+:root{font-family:system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#20352e;background:#f3f8f6}*{box-sizing:border-box}body{margin:0;padding:24px 14px}.app{max-width:1000px;margin:auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}a{color:#15735d}h1{margin:10px 0;font-size:27px}h2{font-size:19px;margin:0 0 14px}.panel{background:#fff;border:1px solid #dce8e1;border-radius:18px;padding:22px;margin:16px 0;box-shadow:0 6px 24px #204e360a}.muted,.hint{color:#5b7368;font-size:14px;line-height:1.65}.hint{margin:8px 0}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}button,.file-label{border:0;border-radius:11px;padding:12px 17px;background:#218a72;color:#fff;font:inherit;font-weight:700;cursor:pointer}button.secondary{background:#eaf4ef;color:#185b49}button:disabled{opacity:.5;cursor:not-allowed}input[type=file]{position:absolute;width:1px;height:1px;opacity:0}input[type=file]:focus-visible+.file-label{outline:3px solid #85bba6}#status{min-height:24px;white-space:pre-wrap}progress{width:100%;height:13px;accent-color:#218a72}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dbe7e1;padding:11px;text-align:center}th{background:#edf6f1}th:first-child{text-align:left}td.diagonal{background:#dff4e9;font-weight:700}.scroll{overflow-x:auto}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}.mistake{border:1px solid #e0e9e4;border-radius:12px;overflow:hidden;background:#fff}.mistake img{width:100%;height:150px;object-fit:contain;background:#f1f5f3}.mistake div{padding:11px;font-size:13px;overflow-wrap:anywhere;line-height:1.65}.error{color:#a23e30}.summary{font-weight:700;color:#176d56}.hidden{display:none!important}code{background:#edf4f0;padding:2px 5px;border-radius:4px}#classNames{font-weight:600}
+</style>
+</head>
+<body><main class="app">
+<header><div><div class="muted">🔎 AI 물질 탐정 · 교사용 평가 도구</div><h1>티처블 머신 모델 평가</h1></div><a href="./index.html">← 탐구 웹앱으로</a></header>
+<section class="panel"><h2>1. 모델과 평가 사진 준비</h2>
+<p class="hint">이 페이지는 같은 폴더의 <code>model.json</code>, <code>metadata.json</code> 및 모델 가중치 파일을 불러옵니다. 모델을 TensorFlow.js 형식으로 다운로드하고 압축을 풀어 함께 올려 주세요.</p>
+<p class="hint">사진 이름은 <code>can_01.jpg</code>처럼 <b>실제클래스_번호.jpg</b>로 지정하세요. 밑줄 앞부분을 실제 클래스로 사용합니다. 클래스 이름은 모델의 metadata.json에 있는 이름과 일치해야 합니다.</p>
+<div id="classNames" class="hint">모델 클래스 확인 중…</div>
+<div class="controls"><label for="photos" class="file-label">🖼️ 평가 사진 여러 장 선택</label><input id="photos" type="file" accept="image/*" multiple><button id="run" disabled>평가 시작</button><span id="count" class="muted">선택한 사진 없음</span></div>
+<p class="hint">사진 파일은 외부 서버로 전송하지 않습니다. 모델 파일과 실행용 라이브러리만 웹에서 불러옵니다.</p>
+<progress id="progress" max="1" value="0" class="hidden"></progress><p id="status" role="status" aria-live="polite"></p></section>
+<section id="results" class="hidden">
+<section class="panel"><h2>2. 전체 평가 결과</h2><p id="summary" class="summary"></p><button id="csv" class="secondary">⬇ CSV 내려받기</button><p class="hint">정분류율 = 해당 클래스의 정답 사진 중 AI가 맞힌 사진 수 ÷ 해당 클래스의 평가 사진 수. 예측 점수는 실제 정답 확률이 아닙니다.</p></section>
+<section class="panel"><h2>3. 혼동행렬</h2><p class="hint">행: 실제 클래스 / 열: AI 예측 클래스. 초록색 대각선이 맞힌 개수입니다.</p><div class="scroll" id="matrix"></div></section>
+<section class="panel"><h2>4. 클래스별 정분류율</h2><div class="scroll" id="accuracy"></div></section>
+<section class="panel"><h2>5. 틀린 사진 모음</h2><p id="mistakeSummary" class="hint"></p><div class="grid" id="mistakes"></div></section>
+<section class="panel"><h2>6. 평가에서 제외된 파일</h2><p class="hint">파일명에 밑줄이 없거나, 실제 클래스가 모델의 클래스 이름과 일치하지 않거나, 이미지를 읽을 수 없는 경우 제외합니다.</p><div id="skipped" class="hint"></div></section>
+</section>
+</main>
+<script>
+'use strict';
+// 이 페이지는 반드시 index.html, model.json, metadata.json과 같은 폴더에 둡니다.
+const MODEL_JSON = './model.json';
+const METADATA_JSON = './metadata.json';
+const $ = id => document.getElementById(id);
+let model = null, labels = [], selectedFiles = [], results = [], skipped = [], objectUrls = [];
+const normalize = s => String(s).trim().toLowerCase();
+const formatPct = v => (100*v).toFixed(1)+'%';
+
+// 모델의 클래스 이름은 metadata.json을 기준으로 읽습니다. 순서를 임의로 변경하지 않습니다.
+async function loadModel(){
+  if (!window.tmImage) throw new Error('tmImage 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+  model = await tmImage.load(MODEL_JSON, METADATA_JSON);
+  labels = model.getClassLabels();
+  if (!labels.length || new Set(labels.map(normalize)).size !== labels.length) throw new Error('모델의 클래스 이름이 없거나 중복됩니다.');
+  $('classNames').textContent='모델 클래스: '+labels.join(' / ');
+}
+
+// 파일명의 첫 밑줄 앞부분을 실제 클래스로 해석합니다. (예: can_01.jpg → can)
+function actualFromFilename(filename){
+  const prefix=filename.split('_')[0];
+  if (!filename.includes('_') || !prefix) return null;
+  return labels.find(name => normalize(name)===normalize(prefix)) ?? null;
+}
+
+// 브라우저 내부에서 이미지를 디코딩합니다. 사진은 네트워크로 업로드하지 않습니다.
+async function loadImage(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=new Image(); img.src=url;
+    await img.decode();
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error('이미지를 열 수 없습니다.');
+    return {img,url};
+  }catch(err){URL.revokeObjectURL(url);throw err;}
+}
+function clearUrls(){objectUrls.forEach(url=>URL.revokeObjectURL(url));objectUrls=[];}
+function setStatus(s,isError=false){$('status').textContent=s;$('status').classList.toggle('error',isError);}
+
+// 모델의 predict를 사진마다 한 번씩 실행하여 최고 점수 클래스를 선택합니다.
+async function evaluate(){
+  $('run').disabled=true;$('photos').disabled=true;$('results').classList.add('hidden');
+  clearUrls();results=[];skipped=[];
+  $('progress').classList.remove('hidden');$('progress').max=selectedFiles.length;$('progress').value=0;
+  try{
+    if(!model){setStatus('모델을 불러오는 중…');await loadModel();}
+    for(let i=0;i<selectedFiles.length;i++){
+      const file=selectedFiles[i];
+      setStatus(`분석 중… ${i+1} / ${selectedFiles.length}장 (${file.name})`);
+      const actual=actualFromFilename(file.name);
+      if(!actual){skipped.push({file:file.name,reason:'파일명의 실제 클래스가 모델 클래스와 일치하지 않음'});}
+      else if(!file.type.startsWith('image/')){skipped.push({file:file.name,reason:'이미지 파일이 아님'});}
+      else{
+        let item;
+        try{
+          item=await loadImage(file);
+          const preds=await model.predict(item.img);
+          if(!Array.isArray(preds)||!preds.length)throw new Error('모델 예측 결과가 비어 있음');
+          const ordered=labels.map(label=>{
+            const found=preds.find(p=>normalize(p.className)===normalize(label));
+            if(!found||!Number.isFinite(found.probability))throw new Error('모델 클래스 또는 점수 불일치');
+            return {label,score:found.probability};
+          });
+          const top=ordered.reduce((a,b)=>b.score>a.score?b:a);
+          const correct=normalize(actual)===normalize(top.label);
+          results.push({filename:file.name,actual,predicted:top.label,confidence:top.score,correct,scores:ordered,url:correct?null:item.url});
+          if(correct)URL.revokeObjectURL(item.url);else objectUrls.push(item.url);
+        }catch(err){if(item?.url)URL.revokeObjectURL(item.url);skipped.push({file:file.name,reason:err.message||'분석 실패'});}
+      }
+      $('progress').value=i+1;
+      // 화면이 멈춘 것처럼 보이지 않도록 렌더링 기회를 제공합니다.
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+    }
+    render();setStatus(`평가 완료: ${results.length}장 분석, ${skipped.length}장 제외`);
+  }catch(err){setStatus('모델 로딩 실패: '+err.message+'\nmodel.json, metadata.json, weights.bin이 같은 폴더에 있는지 확인하세요.',true);}
+  finally{$('run').disabled=!selectedFiles.length;$('photos').disabled=false;}
+}
+
+// 텍스트는 innerHTML에 넣지 않고 textContent로 표시해 파일명 HTML 삽입을 막습니다.
+function cell(row,text,tag='td',className=''){
+  const el=document.createElement(tag);el.textContent=String(text);if(className)el.className=className;row.append(el);return el;
+}
+function render(){
+  $('results').classList.remove('hidden');
+  const correct=results.filter(r=>r.correct).length;
+  $('summary').textContent=`평가 ${results.length}장 · 정답 ${correct}장 · 전체 정분류율 ${results.length?formatPct(correct/results.length):'계산 불가'} · 제외 ${skipped.length}장`;
+  const matrix=new Map(labels.map(actual=>[actual,new Map(labels.map(pred=>[pred,0]))]));
+  results.forEach(r=>matrix.get(r.actual).set(r.predicted,matrix.get(r.actual).get(r.predicted)+1));
+  const table=document.createElement('table'),head=document.createElement('tr');cell(head,'실제 ↓ / 예측 →','th');labels.forEach(l=>cell(head,l,'th'));cell(head,'합계','th');table.append(head);
+  labels.forEach(actual=>{const tr=document.createElement('tr');cell(tr,actual,'th');let total=0;labels.forEach(pred=>{const n=matrix.get(actual).get(pred);total+=n;cell(tr,n,'td',actual===pred?'diagonal':'');});cell(tr,total);table.append(tr);});
+  $('matrix').replaceChildren(table);
+  const acc=document.createElement('table'),aHead=document.createElement('tr');['실제 클래스','평가 사진','정분류','오분류','정분류율'].forEach(x=>cell(aHead,x,'th'));acc.append(aHead);
+  labels.forEach(label=>{const items=results.filter(r=>r.actual===label),ok=items.filter(r=>r.correct).length,tr=document.createElement('tr');[label,items.length,ok,items.length-ok,items.length?formatPct(ok/items.length):'평가 사진 없음'].forEach(x=>cell(tr,x));acc.append(tr);});$('accuracy').replaceChildren(acc);
+  const wrong=results.filter(r=>!r.correct);$('mistakeSummary').textContent=wrong.length?`총 ${wrong.length}장의 오분류 사진입니다.`:'오분류 사진이 없습니다.';
+  const cards=wrong.map(r=>{const card=document.createElement('article');card.className='mistake';const img=document.createElement('img');img.src=r.url;img.alt=r.filename;const detail=document.createElement('div');detail.append(document.createTextNode(r.filename),document.createElement('br'),document.createTextNode(`실제: ${r.actual} / 예측: ${r.predicted}`),document.createElement('br'),document.createTextNode(`예측 점수: ${formatPct(r.confidence)}`));card.append(img,detail);return card;});$('mistakes').replaceChildren(...cards);
+  const excluded=$('skipped');excluded.replaceChildren();if(!skipped.length)excluded.textContent='제외된 파일이 없습니다.';else{const ul=document.createElement('ul');skipped.forEach(s=>{const li=document.createElement('li');li.textContent=`${s.file}: ${s.reason}`;ul.append(li);});excluded.append(ul);}
+}
+
+// CSV는 UTF-8 BOM을 넣어 엑셀에서도 한글이 잘 열리도록 합니다.
+function csvEscape(value){const s=String(value??'');return /[",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;}
+function downloadCSV(){
+  const header=['파일명','실제 클래스','예측 클래스','예측 점수','정분류 여부',...labels.map(l=>`${l} 점수`)];
+  const rows=results.map(r=>[r.filename,r.actual,r.predicted,r.confidence.toFixed(6),r.correct?'정분류':'오분류',...labels.map(l=>r.scores.find(x=>x.label===l).score.toFixed(6))]);
+  const csv='\uFEFF'+[header,...rows].map(row=>row.map(csvEscape).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=document.createElement('a');a.href=url;a.download='teachable_machine_evaluation.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+$('photos').addEventListener('change',e=>{selectedFiles=[...e.target.files];$('count').textContent=`${selectedFiles.length}장 선택됨`;$('run').disabled=!selectedFiles.length;$('results').classList.add('hidden');setStatus('');});
+$('run').addEventListener('click',evaluate);$('csv').addEventListener('click',downloadCSV);
+// 초기 로딩에 실패해도 사진 선택과 재시도는 가능합니다.
+loadModel().catch(err=>{$('classNames').textContent='모델을 아직 불러오지 못했습니다: '+err.message;model=null;});
+window.addEventListener('pagehide',clearUrls);
+</script></body></html>
