@@ -1,10 +1,6 @@
 # 물질 탐정 AI
 초등학교 3학년 과학 물체와 물질 수업을 위한 3단계 웹앱입니다.
 
-## 실행
-`index.html`을 GitHub 저장소의 최상위에 업로드하고 Settings → Pages → Deploy from a branch → main / (root) → Save를 선택하세요.
-배포 주소는 보통 `https://사용자이름.github.io/저장소이름/`입니다.
-
 ## AI 모델
 https://teachablemachine.withgoogle.com/models/gWLQCybIp/
 
