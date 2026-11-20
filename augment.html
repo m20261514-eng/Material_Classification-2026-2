@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>증강 사진 만들기 | AI 물질 탐정</title>
+<style>
+:root{font-family:system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#24394d;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(105deg,#0d3f7a,#155796);color:#fff;padding:24px max(20px,calc((100vw - 1080px)/2))}header h1{font-size:25px;margin:0 0 7px}header p{font-size:13px;margin:0;opacity:.9;line-height:1.65}main{max-width:1120px;margin:20px auto;padding:0 16px 30px}.panel{background:#fff;border:1px solid #dce5ef;border-radius:13px;padding:20px;margin:14px 0;box-shadow:0 3px 15px #10396009}.panel h2{font-size:17px;color:#174c83;margin:0 0 15px}.hint{font-size:13px;color:#657487;line-height:1.7}.row{display:flex;flex-wrap:wrap;align-items:center;gap:14px}.option{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600}.option input[type=checkbox]{accent-color:#1772be;width:16px;height:16px}.numeric{border:1px solid #c7d2e1;border-radius:7px;width:66px;padding:7px;font:inherit}input[type=file]{max-width:100%;font-size:14px}.warning{background:#fff8de;border:1px solid #f1d078;color:#684a19;padding:10px 12px;border-radius:8px;margin:12px 0;font-size:13px;line-height:1.6}.actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}button{border:0;border-radius:8px;padding:10px 16px;background:#1975bb;color:#fff;font:inherit;font-size:14px;font-weight:650;cursor:pointer}button:disabled{background:#a8b4bc;cursor:not-allowed}.secondary{background:#7c8996}.outline{background:#eaf3fa;color:#124d80}.summary{font-size:13px;color:#4a6377;line-height:1.7}progress{height:12px;width:100%;accent-color:#1975bb}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px;margin-top:12px}.card{background:#fafbfd;border:1px solid #dfe7ee;border-radius:8px;padding:5px;min-width:0}.card img{width:100%;aspect-ratio:1.15;object-fit:contain;background:#eef2f6;border-radius:5px}.card p{font-size:11px;margin:5px 2px;overflow-wrap:anywhere;text-align:center;color:#415468}.card .tag{font-size:10px;color:#68768a}.stat{background:#eef6fd;padding:10px 12px;border-radius:8px;display:inline-block;margin-right:7px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:560px){.panel{padding:14px}.row{align-items:flex-start;gap:12px}}
+</style>
+</head>
+<body>
+<header><h1>증강 사진 만들기</h1><p>학습용 사진을 회전하거나 뒤집고 밝기를 바꿔 새 학습 사진을 만듭니다. 사진 처리는 브라우저 안에서 이루어지며, 만든 사진을 ZIP 파일 하나로 내려받을 수 있습니다.</p></header>
+<main>
+<section class="panel"><h2>1. 사진 고르기</h2><input id="photos" type="file" accept="image/*" multiple aria-label="학습용 사진 여러 장 선택"><p class="hint">학습 업로드용 사진만 선택하세요. 파일명은 <b>wood_39.jpg</b>처럼 클래스_번호 형식을 권장합니다. 고정 개발용·최종 테스트용 사진을 증강하면 안 됩니다.</p><div id="fileSummary" class="summary">선택된 사진 없음</div></section>
+<section class="panel"><h2>2. 어떻게 바꿀까?</h2>
+<div class="row">
+<label class="option"><input id="rotate" type="checkbox" checked> 회전 ± <input class="numeric" id="angle" type="number" min="1" max="45" step="1" value="12" aria-label="회전 각도(도)"> ° (2장)</label>
+<label class="option"><input id="flip" type="checkbox" checked> 좌우 반전 (1장)</label>
+<label class="option"><input id="brightness" type="checkbox" checked> 밝기 × <input class="numeric" id="brightLow" type="number" min="0.1" max="2" step="0.1" value="0.7" aria-label="낮은 밝기 배율"> 과 × <input class="numeric" id="brightHigh" type="number" min="0.1" max="2" step="0.1" value="1.3" aria-label="높은 밝기 배율"> (2장)</label>
+</div>
+<div class="warning">좌우 반전은 뒤집어도 의미가 같은 물체에만 사용하세요. 글자, 숫자, 좌우 방향이 중요한 사진에는 적합하지 않을 수 있습니다. 과도한 회전·밝기 변경도 실제 물질의 특징을 왜곡할 수 있습니다.</div>
+<div class="actions"><button id="make">만들기</button><button id="zip" class="secondary" disabled>⬇ 증강 사진 전체 ZIP 저장</button><button id="clear" class="outline">지우기</button></div>
+<div id="countSummary" class="summary" role="status" aria-live="polite">사진을 선택하고 증강 조건을 정하세요.</div>
+<progress id="progress" value="0" max="1" hidden></progress><p class="hint" id="status"></p>
+</section>
+<section class="panel"><h2>3. 결과</h2><p class="hint">아래는 새로 만든 증강 사진입니다. <b>증강 사진 전체 ZIP 저장</b> 버튼을 누르면 증강본 JPG가 하나의 ZIP 파일로 다운로드됩니다. ZIP 압축을 풀어 해당 클래스의 티처블 머신 학습용 사진에 추가하세요. 기존 원본 사진은 그대로 두고, 고정 개발용·최종 테스트용 사진은 증강하지 마세요.</p><div id="results" class="cards"></div><p class="hint">파일명 예시: <code>metal_15_rot12.jpg</code> · <code>metal_15_rotm12.jpg</code> · <code>metal_15_flip.jpg</code> · <code>metal_15_b70.jpg</code> · <code>metal_15_b130.jpg</code></p></section>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let entries=[], previews=[], busy=false;
+const encoder=new TextEncoder();
+function escapeName(name){return name.replace(/\.[^.]+$/, '');}
+function slugNumber(n){return Math.round(n*100).toString();}
+function selectedOptions(){
+ const angle=Number($('angle').value),lo=Number($('brightLow').value),hi=Number($('brightHigh').value);
+ if($('rotate').checked&&(!Number.isFinite(angle)||angle<1||angle>45))throw Error('회전 각도는 1~45도여야 합니다.');
+ if($('brightness').checked&&(!Number.isFinite(lo)||!Number.isFinite(hi)||lo<0.1||hi>2||lo>=hi))throw Error('밝기는 0.1~2배 범위에서 낮은 값 < 높은 값으로 입력하세요.');
+ const opts=[];
+ if($('rotate').checked){opts.push({kind:'rotate',arg:angle,suffix:'_rot'+angle},{kind:'rotate',arg:-angle,suffix:'_rotm'+angle});}
+ if($('flip').checked)opts.push({kind:'flip',suffix:'_flip'});
+ if($('brightness').checked){opts.push({kind:'brightness',arg:lo,suffix:'_b'+slugNumber(lo)},{kind:'brightness',arg:hi,suffix:'_b'+slugNumber(hi)});}
+ if(!opts.length)throw Error('증강 방법을 한 가지 이상 선택하세요.');
+ return opts;
+}
+function status(t){$('status').textContent=t;}
+function controls(){ $('make').disabled=busy; $('zip').disabled=busy||!entries.length; $('clear').disabled=busy; $('photos').disabled=busy; }
+function resetResults(){entries=[];previews.forEach(URL.revokeObjectURL);previews=[];$('results').replaceChildren();$('zip').disabled=true;$('progress').hidden=true;}
+function updateCount(){
+ const files=[...$('photos').files];const groups={};for(const f of files){const klass=f.name.split('_')[0];groups[klass]=(groups[klass]||0)+1;}
+ $('fileSummary').textContent=files.length?`선택한 원본 ${files.length}장 · 클래스별: ${Object.entries(groups).map(([k,v])=>`${k} ${v}장`).join(', ')}`:'선택된 사진 없음';
+ try{const n=selectedOptions().length;$('countSummary').textContent=`원본 ${files.length}장 → 증강본 ${files.length*n}장 생성 예정 · 원본과 합쳐 학습용 ${files.length*(n+1)}장`;}
+ catch(e){$('countSummary').textContent=e.message;}
+}
+$('photos').addEventListener('change',()=>{resetResults();updateCount();status('');});
+['rotate','flip','brightness','angle','brightLow','brightHigh'].forEach(id=>$(id).addEventListener('change',()=>{resetResults();updateCount();}));
+$('clear').addEventListener('click',()=>{$('photos').value='';resetResults();updateCount();status('선택과 결과를 지웠습니다.');});
+function readImage(file){return new Promise((resolve,reject)=>{let u=URL.createObjectURL(file);const img=new Image();img.onload=()=>{URL.revokeObjectURL(u);resolve(img);};img.onerror=()=>{URL.revokeObjectURL(u);reject(Error('이미지를 열 수 없습니다: '+file.name));};img.src=u;});}
+function canvasToBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('이미지 저장에 실패했습니다.')),'image/jpeg',0.92));}
+function applyTransform(img,opt){
+ // 한 장의 원본을 독립적으로 변형합니다. 증강본을 다시 증강하지 않습니다.
+ const canvas=document.createElement('canvas');
+ // 원본 비율과 크기를 유지하되 큰 사진은 브라우저 메모리 보호를 위해 축소합니다.
+ const s=Math.min(1,2048/Math.max(img.naturalWidth,img.naturalHeight));
+ const w=Math.max(1,Math.round(img.naturalWidth*s)),h=Math.max(1,Math.round(img.naturalHeight*s));
+ canvas.width=w;canvas.height=h;const c=canvas.getContext('2d',{willReadFrequently:opt.kind==='brightness'});
+ c.fillStyle='#eeeeee';c.fillRect(0,0,w,h);
+ if(opt.kind==='rotate'){
+   // 캔버스 중심을 기준으로 회전, 빈 모서리는 중립 회색으로 채웁니다.
+   c.translate(w/2,h/2);c.rotate(opt.arg*Math.PI/180);c.drawImage(img,-w/2,-h/2,w,h);
+ }else if(opt.kind==='flip'){
+   // 좌우 반전: 중앙 축을 기준으로 이미지만 뒤집습니다.
+   c.translate(w,0);c.scale(-1,1);c.drawImage(img,0,0,w,h);
+ }else{
+   c.drawImage(img,0,0,w,h);
+   // RGB에 밝기 배율을 적용합니다. 알파 값은 변경하지 않습니다.
+   const p=c.getImageData(0,0,w,h),data=p.data;
+   for(let i=0;i<data.length;i+=4){data[i]=Math.min(255,Math.round(data[i]*opt.arg));data[i+1]=Math.min(255,Math.round(data[i+1]*opt.arg));data[i+2]=Math.min(255,Math.round(data[i+2]*opt.arg));}
+   c.putImageData(p,0,0);
+ }
+ return canvas;
+}
+function uniqueName(file,opt,used){const base=escapeName(file.name);let name=base+opt.suffix+'.jpg';let n=2;while(used.has(name)){name=base+opt.suffix+'_'+n+'.jpg';n++;}used.add(name);return name;}
+function addPreview(blob,name){const u=URL.createObjectURL(blob);previews.push(u);const card=document.createElement('article');card.className='card';const img=document.createElement('img');img.src=u;img.alt=name;img.loading='lazy';const caption=document.createElement('p');caption.textContent=name;card.append(img,caption);$('results').append(card);}
+$('make').addEventListener('click',async()=>{
+ if(busy)return;
+ const files=[...$('photos').files];if(!files.length){status('학습용 사진을 먼저 선택하세요.');return;}
+ let opts;try{opts=selectedOptions();}catch(e){status(e.message);return;}
+ busy=true;resetResults();controls();const total=files.length*opts.length;let done=0;const used=new Set();const failures=[];
+ $('progress').hidden=false;$('progress').max=total;$('progress').value=0;
+ try{
+  for(const file of files){
+   try{
+    if(!file.type.startsWith('image/'))throw Error('이미지가 아닌 파일');
+    const img=await readImage(file);
+    for(const opt of opts){
+      const canvas=applyTransform(img,opt);const blob=await canvasToBlob(canvas);const name=uniqueName(file,opt,used);
+      entries.push({name,blob});addPreview(blob,name);done++;$('progress').value=done;
+      status(`만드는 중… ${done}/${total}장`);
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+   }catch(e){failures.push(file.name+': '+e.message);}
+  }
+  $('countSummary').textContent=`원본 ${files.length}장 / 실제 생성된 증강본 ${entries.length}장 / 원본과 합계 ${files.length+entries.length}장`;
+  status(`완료: 증강 사진 ${entries.length}장 생성. ${failures.length?'처리 실패: '+failures.join('; '):'ZIP 저장 버튼으로 증강본 전체를 다운로드할 수 있습니다.'}`);
+ }catch(e){status('생성 오류: '+e.message);}finally{busy=false;controls();}
+});
+// ZIP 파일을 외부 라이브러리나 서버 없이 생성합니다(압축하지 않는 표준 ZIP 형식).
+const crcTable=(()=>{let table=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);table[n]=c>>>0;}return table;})();
+function crc32(data){let c=0xffffffff;for(const b of data)c=crcTable[(c^b)&255]^(c>>>8);return (c^0xffffffff)>>>0;}
+function zipBytes(){return new Promise(async(resolve,reject)=>{
+ try{
+   const parts=[],central=[];let offset=0;
+   for(let i=0;i<entries.length;i++){
+    const {name,blob}=entries[i],fname=encoder.encode(name),data=new Uint8Array(await blob.arrayBuffer()),crc=crc32(data);
+    const local=new Uint8Array(30+fname.length),v=new DataView(local.buffer);
+    v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x0800,true);v.setUint16(8,0,true);v.setUint32(14,crc,true);v.setUint32(18,data.length,true);v.setUint32(22,data.length,true);v.setUint16(26,fname.length,true);local.set(fname,30);
+    parts.push(local,data);
+    const cen=new Uint8Array(46+fname.length),cv=new DataView(cen.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0x0800,true);cv.setUint16(10,0,true);cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);cv.setUint16(28,fname.length,true);cv.setUint32(42,offset,true);cen.set(fname,46);
+    central.push(cen);offset+=local.length+data.length;
+    if(offset>0xffffffff)throw Error('ZIP 용량이 4GB를 초과합니다. 사진을 나눠서 처리하세요.');
+    if(i%10===0)await new Promise(r=>setTimeout(r,0));
+   }
+   if(entries.length>65535)throw Error('ZIP 내 파일 수가 너무 많습니다.');
+   const cenSize=central.reduce((a,b)=>a+b.length,0),end=new Uint8Array(22),dv=new DataView(end.buffer);
+   dv.setUint32(0,0x06054b50,true);dv.setUint16(8,entries.length,true);dv.setUint16(10,entries.length,true);dv.setUint32(12,cenSize,true);dv.setUint32(16,offset,true);
+   resolve(new Blob([...parts,...central,end],{type:'application/zip'}));
+ }catch(e){reject(e);}
+});}
+$('zip').addEventListener('click',async()=>{
+ if(busy||!entries.length)return;busy=true;controls();status('ZIP 파일을 만드는 중입니다…');
+ try{const zip=await zipBytes();const url=URL.createObjectURL(zip);const a=document.createElement('a');a.href=url;a.download='augmented.zip';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status(`augmented.zip 다운로드 준비 완료 · ${entries.length}장`);}catch(e){status('ZIP 생성 실패: '+e.message);}finally{busy=false;controls();}
+});
+updateCount();controls();
+</script>
+</body></html>
