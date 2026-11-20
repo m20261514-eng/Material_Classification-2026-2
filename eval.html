@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 물질 탐정 | 모델 평가</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+<style>
+:root{font-family:system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#20352e;background:#f3f8f6}*{box-sizing:border-box}body{margin:0;padding:24px 14px}.app{max-width:1000px;margin:auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}a{color:#15735d}h1{margin:10px 0;font-size:27px}h2{font-size:19px;margin:0 0 14px}.panel{background:#fff;border:1px solid #dce8e1;border-radius:18px;padding:22px;margin:16px 0;box-shadow:0 6px 24px #204e360a}.muted,.hint{color:#5b7368;font-size:14px;line-height:1.65}.hint{margin:8px 0}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}button,.file-label{border:0;border-radius:11px;padding:12px 17px;background:#218a72;color:#fff;font:inherit;font-weight:700;cursor:pointer}button.secondary{background:#eaf4ef;color:#185b49}button:disabled{opacity:.5;cursor:not-allowed}input[type=file]{position:absolute;width:1px;height:1px;opacity:0}input[type=file]:focus-visible+.file-label{outline:3px solid #85bba6}#status{min-height:24px;white-space:pre-wrap}progress{width:100%;height:13px;accent-color:#218a72}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dbe7e1;padding:11px;text-align:center}th{background:#edf6f1}th:first-child{text-align:left}td.diagonal{background:#dff4e9;font-weight:700}.scroll{overflow-x:auto}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}.mistake{border:1px solid #e0e9e4;border-radius:12px;overflow:hidden;background:#fff}.mistake img{width:100%;height:150px;object-fit:contain;background:#f1f5f3}.mistake div{padding:11px;font-size:13px;overflow-wrap:anywhere;line-height:1.65}.error{color:#a23e30}.summary{font-weight:700;color:#176d56}.hidden{display:none!important}code{background:#edf4f0;padding:2px 5px;border-radius:4px}#classNames{font-weight:600}.occlusion-list{display:grid;gap:18px}.occlusion-card{border:1px solid #dce8e1;border-radius:14px;padding:16px;background:#fbfdfc}.occ-layout{display:grid;grid-template-columns:minmax(190px,260px) 1fr;gap:18px;align-items:start}.occ-canvas{width:100%;aspect-ratio:1;border-radius:9px;border:1px solid #cadbd2;background:#e6ece9}.occ-info{font-size:13px;line-height:1.7}.occ-info p{margin:6px 0}.occ-title{font-weight:700;font-size:15px;margin-bottom:10px}.occlusion-note{background:#eef7f2;border-left:3px solid #218a72;padding:10px 12px;margin:10px 0;font-size:13px;line-height:1.65}.analysis-progress{margin:14px 0}.analysis-progress progress{margin:8px 0}.plain{background:#f6f8f7;border-radius:8px;padding:10px;font-size:13px;line-height:1.6}@media(max-width:600px){.occ-layout{grid-template-columns:1fr}.occ-canvas{max-width:320px}}
+
+/* 7번 아래: 데이터 증강 학습 도구 이동 안내 */
+.augmentation-next{border:1px solid #b8dccb;background:linear-gradient(135deg,#f5fcf8,#e8f6ef)}
+.augmentation-next h2{color:#145a47}
+.augmentation-next .why{margin:13px 0 18px;padding:16px 18px;background:#fff;border:1px solid #d7ebe1;border-radius:12px;line-height:1.8;font-size:14px}
+.augmentation-next .why p{margin:0 0 10px}.augmentation-next .why p:last-child{margin-bottom:0}
+.augment-link{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:70px;padding:18px 22px;border-radius:14px;background:#168569;color:#fff;text-decoration:none;font-weight:800;font-size:20px;text-align:center;box-shadow:0 5px 16px #16856928;transition:background .15s,transform .15s}
+.augment-link:hover{background:#0f6e56;transform:translateY(-1px)}
+.augment-link:focus-visible{outline:3px solid #6bc9a4;outline-offset:4px}
+</style>
+</head>
+<body><main class="app">
+<header><div><div class="muted">🔎 AI 물질 탐정 · 교사용 평가 도구</div><h1>티처블 머신 모델 평가</h1></div><a href="./index.html">← 탐구 웹앱으로</a></header>
+<section class="panel"><h2>1. 모델과 평가 사진 준비</h2>
+<p class="hint">이 페이지는 같은 폴더의 <code>model.json</code>, <code>metadata.json</code> 및 모델 가중치 파일을 불러옵니다. 모델을 TensorFlow.js 형식으로 다운로드하고 압축을 풀어 함께 올려 주세요.</p>
+<p class="hint">사진 이름은 <code>can_01.jpg</code>처럼 <b>실제클래스_번호.jpg</b>로 지정하세요. 밑줄 앞부분을 실제 클래스로 사용합니다. 클래스 이름은 모델의 metadata.json에 있는 이름과 일치해야 합니다.</p>
+<div id="classNames" class="hint">모델 클래스 확인 중…</div>
+<div class="controls"><label for="photos" class="file-label">🖼️ 평가 사진 여러 장 선택</label><input id="photos" type="file" accept="image/*" multiple><button id="run" disabled>평가 시작</button><span id="count" class="muted">선택한 사진 없음</span></div>
+<p class="hint">사진 파일은 외부 서버로 전송하지 않습니다. 모델 파일과 실행용 라이브러리만 웹에서 불러옵니다.</p>
+<progress id="progress" max="1" value="0" class="hidden"></progress><p id="status" role="status" aria-live="polite"></p></section>
+<section id="results" class="hidden">
+<section class="panel"><h2>2. 전체 평가 결과</h2><p id="summary" class="summary"></p><button id="csv" class="secondary">⬇ CSV 내려받기</button><p class="hint">정분류율 = 해당 클래스의 정답 사진 중 AI가 맞힌 사진 수 ÷ 해당 클래스의 평가 사진 수. 예측 점수는 실제 정답 확률이 아닙니다.</p></section>
+<section class="panel"><h2>3. 혼동행렬</h2><p class="hint">행: 실제 클래스 / 열: AI 예측 클래스. 초록색 대각선이 맞힌 개수입니다.</p><div class="scroll" id="matrix"></div></section>
+<section class="panel"><h2>4. 클래스별 정분류율</h2><div class="scroll" id="accuracy"></div></section>
+<section class="panel"><h2>5. 틀린 사진 모음</h2><p id="mistakeSummary" class="hint"></p><div class="grid" id="mistakes"></div></section>
+<section class="panel"><h2>6. 오분류 사진 자동 가리기 분석 및 모델 개선 가설</h2>
+<p class="hint">5번에서 발견한 <b>오분류 사진만</b> 자동으로 분석합니다. 각 사진을 224×224로 맞춘 뒤, 잘못 예측한 클래스를 기준으로 6×6칸을 한 칸씩 회색(128)으로 가립니다. 각 칸의 예측 확률 감소량과 증가량, 히트맵, 개선 가설을 보여줍니다.</p>
+<p class="hint">분석은 모델 평가가 끝난 뒤 자동으로 시작됩니다. 오분류가 많으면 36회 × 오분류 사진 수만큼 예측하므로 시간이 걸릴 수 있습니다. <b>가설은 사진의 내용을 직접 이해한 결과가 아니라 확률 변화의 위치를 기반으로 한 탐색 제안</b>이며, 사진을 눈으로 확인하여 판단해야 합니다.</p>
+<div class="controls"><button id="restartOcclusion" class="secondary" disabled>🔁 가리기 분석 다시 실행</button><button id="cancelOcclusion" class="secondary" disabled>분석 중단</button><button id="occlusionCsv" class="secondary" disabled>⬇ 전체 가리기 결과 CSV</button></div>
+<div class="analysis-progress"><progress id="occProgress" max="1" value="0"></progress><p id="occStatus" class="hint" aria-live="polite">평가 후 자동으로 분석합니다.</p></div>
+<div id="occlusionList" class="occlusion-list"></div>
+</section>
+<section class="panel"><h2>7. 평가에서 제외된 파일</h2><p class="hint">파일명에 밑줄이 없거나, 실제 클래스가 모델의 클래스 이름과 일치하지 않거나, 이미지를 읽을 수 없는 경우 제외합니다.</p><div id="skipped" class="hint"></div></section>
+</section>
+
+<!-- 다음 단계는 평가 전에도 찾아갈 수 있도록 결과 영역 바깥에 둡니다. -->
+<section class="panel augmentation-next" aria-labelledby="augmentation-heading">
+<h2 id="augmentation-heading">다음 단계 · 데이터 증강으로 모델 개선하기</h2>
+<p class="hint">평가와 가리기 실험으로 오분류 사례를 살펴보았다면, 이제 <strong>학습용 사진의 다양한 모습을 보완하는 실험</strong>을 해 보세요.</p>
+<div class="why">
+<p><strong>왜 증강 사진을 만들까요?</strong> 모델이 특정 각도나 조명에서 찍힌 사진에 익숙해져 다른 환경의 물체를 잘못 분류할 수 있기 때문입니다. 기존 학습 사진을 조금 회전하거나 밝기를 바꾸면 더 다양한 상황을 학습하도록 도울 수 있습니다.</p>
+<p><strong>무엇을 바꿀까요?</strong> 6번에서 확인한 오류 양상을 참고해 회전(예: ±12°), 좌우 반전 또는 밝기(예: ×0.7·×1.3) 중 필요한 변형을 골라 실험합니다. 단, 증강만으로 오류가 반드시 줄어드는 것은 아닙니다.</p>
+<p><strong>어떻게 비교할까요?</strong> 학습 업로드용 사진만 증강하여 티처블 머신의 새 모델(v2)을 학습하고, <strong>v1과 같은 고정 개발용 사진</strong>으로 다시 평가하세요. 고정 개발용과 최종 테스트용 사진은 증강하거나 학습에 넣지 않습니다.</p>
+</div>
+<a class="augment-link" href="./augment.html">🖼️ 증강 사진 만들기로 이동 <span aria-hidden="true">→</span></a>
+<p class="hint">버튼은 같은 폴더의 <code>augment.html</code>로 이동합니다. GitHub 저장소에 <code>eval.html</code>과 <code>augment.html</code>을 함께 올려 주세요.</p>
+</section>
+</main>
+<script>
+'use strict';
+// 이 페이지는 반드시 index.html, model.json, metadata.json과 같은 폴더에 둡니다.
+const MODEL_JSON = './model.json';
+const METADATA_JSON = './metadata.json';
+const $ = id => document.getElementById(id);
+let model = null, labels = [], selectedFiles = [], results = [], skipped = [], objectUrls = [];
+let occRunId = 0, occRecords = [], occActive = false;
+const normalize = s => String(s).trim().toLowerCase();
+const formatPct = v => (100*v).toFixed(1)+'%';
+
+// 모델의 클래스 이름은 metadata.json을 기준으로 읽습니다. 순서를 임의로 변경하지 않습니다.
+async function loadModel(){
+  if (!window.tmImage) throw new Error('tmImage 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+  model = await tmImage.load(MODEL_JSON, METADATA_JSON);
+  labels = model.getClassLabels();
+  if (!labels.length || new Set(labels.map(normalize)).size !== labels.length) throw new Error('모델의 클래스 이름이 없거나 중복됩니다.');
+  $('classNames').textContent='모델 클래스: '+labels.join(' / ');
+}
+
+// 파일명의 첫 밑줄 앞부분을 실제 클래스로 해석합니다. (예: can_01.jpg → can)
+function actualFromFilename(filename){
+  const prefix=filename.split('_')[0];
+  if (!filename.includes('_') || !prefix) return null;
+  return labels.find(name => normalize(name)===normalize(prefix)) ?? null;
+}
+
+// 브라우저 내부에서 이미지를 디코딩합니다. 사진은 네트워크로 업로드하지 않습니다.
+async function loadImage(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=new Image(); img.src=url;
+    await img.decode();
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error('이미지를 열 수 없습니다.');
+    return {img,url};
+  }catch(err){URL.revokeObjectURL(url);throw err;}
+}
+function clearUrls(){objectUrls.forEach(url=>URL.revokeObjectURL(url));objectUrls=[];}
+function setStatus(s,isError=false){$('status').textContent=s;$('status').classList.toggle('error',isError);}
+
+// 모델의 predict를 사진마다 한 번씩 실행하여 최고 점수 클래스를 선택합니다.
+async function evaluate(){
+  // 다른 평가를 실행할 때 이전 가리기 분석을 중지하고 결과를 초기화합니다.
+  occRunId++; occActive=false; occRecords=[];
+  $('occlusionList').replaceChildren(); $('occProgress').value=0;
+  $('occStatus').textContent='새 평가를 준비하고 있습니다.';
+  $('restartOcclusion').disabled=true; $('cancelOcclusion').disabled=true; $('occlusionCsv').disabled=true;
+  $('run').disabled=true;$('photos').disabled=true;$('results').classList.add('hidden');
+  clearUrls();results=[];skipped=[];
+  $('progress').classList.remove('hidden');$('progress').max=selectedFiles.length;$('progress').value=0;
+  try{
+    if(!model){setStatus('모델을 불러오는 중…');await loadModel();}
+    for(let i=0;i<selectedFiles.length;i++){
+      const file=selectedFiles[i];
+      setStatus(`분석 중… ${i+1} / ${selectedFiles.length}장 (${file.name})`);
+      const actual=actualFromFilename(file.name);
+      if(!actual){skipped.push({file:file.name,reason:'파일명의 실제 클래스가 모델 클래스와 일치하지 않음'});}
+      else if(!file.type.startsWith('image/')){skipped.push({file:file.name,reason:'이미지 파일이 아님'});}
+      else{
+        let item;
+        try{
+          item=await loadImage(file);
+          const preds=await model.predict(item.img);
+          if(!Array.isArray(preds)||!preds.length)throw new Error('모델 예측 결과가 비어 있음');
+          const ordered=labels.map(label=>{
+            const found=preds.find(p=>normalize(p.className)===normalize(label));
+            if(!found||!Number.isFinite(found.probability))throw new Error('모델 클래스 또는 점수 불일치');
+            return {label,score:found.probability};
+          });
+          const top=ordered.reduce((a,b)=>b.score>a.score?b:a);
+          const correct=normalize(actual)===normalize(top.label);
+          results.push({filename:file.name,actual,predicted:top.label,confidence:top.score,correct,scores:ordered,url:correct?null:item.url});
+          if(correct)URL.revokeObjectURL(item.url);else objectUrls.push(item.url);
+        }catch(err){if(item?.url)URL.revokeObjectURL(item.url);skipped.push({file:file.name,reason:err.message||'분석 실패'});}
+      }
+      $('progress').value=i+1;
+      // 화면이 멈춘 것처럼 보이지 않도록 렌더링 기회를 제공합니다.
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+    }
+    render();setStatus(`평가 완료: ${results.length}장 분석, ${skipped.length}장 제외`);
+    // 5번 오분류 사진을 대상으로 6번 분석을 자동 시작합니다.
+    await runOcclusion();
+  }catch(err){setStatus('모델 로딩 실패: '+err.message+'\nmodel.json, metadata.json, weights.bin이 같은 폴더에 있는지 확인하세요.',true);}
+  finally{$('run').disabled=!selectedFiles.length;$('photos').disabled=false;}
+}
+
+// 텍스트는 innerHTML에 넣지 않고 textContent로 표시해 파일명 HTML 삽입을 막습니다.
+function cell(row,text,tag='td',className=''){
+  const el=document.createElement(tag);el.textContent=String(text);if(className)el.className=className;row.append(el);return el;
+}
+function render(){
+  $('results').classList.remove('hidden');
+  const correct=results.filter(r=>r.correct).length;
+  $('summary').textContent=`평가 ${results.length}장 · 정답 ${correct}장 · 전체 정분류율 ${results.length?formatPct(correct/results.length):'계산 불가'} · 제외 ${skipped.length}장`;
+  const matrix=new Map(labels.map(actual=>[actual,new Map(labels.map(pred=>[pred,0]))]));
+  results.forEach(r=>matrix.get(r.actual).set(r.predicted,matrix.get(r.actual).get(r.predicted)+1));
+  const table=document.createElement('table'),head=document.createElement('tr');cell(head,'실제 ↓ / 예측 →','th');labels.forEach(l=>cell(head,l,'th'));cell(head,'합계','th');table.append(head);
+  labels.forEach(actual=>{const tr=document.createElement('tr');cell(tr,actual,'th');let total=0;labels.forEach(pred=>{const n=matrix.get(actual).get(pred);total+=n;cell(tr,n,'td',actual===pred?'diagonal':'');});cell(tr,total);table.append(tr);});
+  $('matrix').replaceChildren(table);
+  const acc=document.createElement('table'),aHead=document.createElement('tr');['실제 클래스','평가 사진','정분류','오분류','정분류율'].forEach(x=>cell(aHead,x,'th'));acc.append(aHead);
+  labels.forEach(label=>{const items=results.filter(r=>r.actual===label),ok=items.filter(r=>r.correct).length,tr=document.createElement('tr');[label,items.length,ok,items.length-ok,items.length?formatPct(ok/items.length):'평가 사진 없음'].forEach(x=>cell(tr,x));acc.append(tr);});$('accuracy').replaceChildren(acc);
+  const wrong=results.filter(r=>!r.correct);$('mistakeSummary').textContent=wrong.length?`총 ${wrong.length}장의 오분류 사진입니다.`:'오분류 사진이 없습니다.';
+  const cards=wrong.map(r=>{const card=document.createElement('article');card.className='mistake';const img=document.createElement('img');img.src=r.url;img.alt=r.filename;const detail=document.createElement('div');detail.append(document.createTextNode(r.filename),document.createElement('br'),document.createTextNode(`실제: ${r.actual} / 예측: ${r.predicted}`),document.createElement('br'),document.createTextNode(`예측 점수: ${formatPct(r.confidence)}`));card.append(img,detail);return card;});$('mistakes').replaceChildren(...cards);
+  const excluded=$('skipped');excluded.replaceChildren();if(!skipped.length)excluded.textContent='제외된 파일이 없습니다.';else{const ul=document.createElement('ul');skipped.forEach(s=>{const li=document.createElement('li');li.textContent=`${s.file}: ${s.reason}`;ul.append(li);});excluded.append(ul);}
+}
+
+// CSV는 UTF-8 BOM을 넣어 엑셀에서도 한글이 잘 열리도록 합니다.
+function csvEscape(value){const s=String(value??'');return /[",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;}
+function downloadCSV(){
+  const header=['파일명','실제 클래스','예측 클래스','예측 점수','정분류 여부',...labels.map(l=>`${l} 점수`)];
+  const rows=results.map(r=>[r.filename,r.actual,r.predicted,r.confidence.toFixed(6),r.correct?'정분류':'오분류',...labels.map(l=>r.scores.find(x=>x.label===l).score.toFixed(6))]);
+  const csv='\uFEFF'+[header,...rows].map(row=>row.map(csvEscape).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=document.createElement('a');a.href=url;a.download='teachable_machine_evaluation.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+
+// ---------- 6번: 오분류 자동 가리기 실험기 ----------
+// 텐서플로우 모델이 입력받는 이미지를 224×224 정사각형으로 통일합니다.
+// 원본과 가린 사진을 동일한 캔버스에서 예측하여 전처리 차이를 줄입니다.
+const OCC_SIZE=224, OCC_GRID=6;
+const occSource=document.createElement('canvas'); occSource.width=occSource.height=OCC_SIZE;
+const occSourceCtx=occSource.getContext('2d');
+const occMasked=document.createElement('canvas'); occMasked.width=occMasked.height=OCC_SIZE;
+const occMaskedCtx=occMasked.getContext('2d');
+function occYield(){return new Promise(resolve=>setTimeout(resolve,0));}
+function probOf(preds, className){
+  const item=preds.find(p=>normalize(p.className)===normalize(className));
+  if(!item||!Number.isFinite(item.probability))throw new Error('선택한 클래스 확률을 찾을 수 없습니다.');
+  return item.probability;
+}
+function drawSquare(img){
+  // 화면 중앙을 기준으로 정사각형 크롭. 모델 원본 평가와 확률이 다를 수 있습니다.
+  const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+  const side=Math.min(w,h), sx=(w-side)/2,sy=(h-side)/2;
+  occSourceCtx.clearRect(0,0,OCC_SIZE,OCC_SIZE);
+  occSourceCtx.drawImage(img,sx,sy,side,side,0,0,OCC_SIZE,OCC_SIZE);
+}
+function occRect(row,col){
+  // 각 칸이 224의 정수 나눗셈으로 인해 겹치거나 비지 않도록 경계 좌표를 계산합니다.
+  const x0=Math.round(col*OCC_SIZE/OCC_GRID), y0=Math.round(row*OCC_SIZE/OCC_GRID);
+  const x1=Math.round((col+1)*OCC_SIZE/OCC_GRID), y1=Math.round((row+1)*OCC_SIZE/OCC_GRID);
+  return [x0,y0,x1-x0,y1-y0];
+}
+function occMakeCard(item){
+  const card=document.createElement('article');card.className='occlusion-card';
+  const title=document.createElement('div');title.className='occ-title';title.textContent=`${item.filename} · 실제 ${item.actual} → AI 예측 ${item.predicted}`;
+  const layout=document.createElement('div');layout.className='occ-layout';
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=448;canvas.className='occ-canvas';canvas.setAttribute('aria-label',`${item.filename} 6×6 가리기 히트맵`);
+  const info=document.createElement('div');info.className='occ-info';info.textContent='가리기 분석 중…';
+  layout.append(canvas,info);card.append(title,layout);$('occlusionList').append(card);
+  return {canvas,info};
+}
+function occDrawHeatmap(canvas,imgData,cells){
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,448,448);
+  ctx.putImageData(imgData,0,0); // 아래에서 224픽셀을 448로 확대한 상태로 다시 그림
+  const original=document.createElement('canvas');original.width=original.height=OCC_SIZE;
+  original.getContext('2d').putImageData(imgData,0,0);
+  ctx.clearRect(0,0,448,448);ctx.drawImage(original,0,0,448,448);
+  const maxDrop=Math.max(0,...cells.map(c=>c.drop));
+  const maxRise=Math.max(0,...cells.map(c=>-c.signedDrop));
+  for(const c of cells){
+    const [x,y,w,h]=occRect(c.row,c.col).map(n=>n*2);
+    // 빨강: 감소, 파랑: 증가. 어느 쪽도 없으면 투명 처리합니다.
+    const magnitude=c.signedDrop>=0?c.drop:-c.signedDrop;
+    const max=c.signedDrop>=0?maxDrop:maxRise;
+    if(max>0.000001&&magnitude>0.000001){
+      const alpha=0.08+0.66*Math.pow(magnitude/max,0.7);
+      ctx.fillStyle=c.signedDrop>=0?`rgba(229,54,48,${alpha})`:`rgba(41,109,219,${alpha})`;
+      ctx.fillRect(x,y,w,h);
+    }
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+    const t=c.signedDrop.toFixed(4);
+    ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.94)';ctx.strokeText(t,x+w/2,y+h/2);
+    ctx.fillStyle='#202725';ctx.fillText(t,x+w/2,y+h/2);
+  }
+}
+function occHypothesis(item,cells,base){
+  // 픽셀에서 물체 종류·재질·색을 인식한 것이 아니므로 공간 분포에 따른 가설만 제시합니다.
+  const drops=[...cells].sort((a,b)=>b.drop-a.drop);
+  const strongest=drops[0], positives=cells.filter(c=>c.drop>=0.005);
+  const weak=strongest.drop<0.005;
+  const rows=positives.map(c=>c.row),cols=positives.map(c=>c.col);
+  const edge=positives.filter(c=>c.row===0||c.row===5||c.col===0||c.col===5).length;
+  const spread=positives.length>=6 && (new Set(rows).size>=4||new Set(cols).size>=4);
+  if(weak){
+    const rises=cells.filter(c=>c.signedDrop<=-0.005).length;
+    return {
+      pattern:'감소가 거의 없음 (전체/불명확)',
+      hypothesis:rises?`칸을 가렸을 때 ${item.predicted} 확률이 주로 증가하거나 거의 달라지지 않음. 해당 클래스의 오분류가 한 칸에 집중되지 않았을 수 있음.`:`어느 한 칸을 가려도 ${item.predicted} 확률이 크게 떨어지지 않음. 여러 영역의 특징이 함께 영향을 주거나 가림 크기가 너무 작을 수 있음.`,
+      improve:'가림 크기 2칸 또는 촬영 조건을 바꾼 사진으로 재확인함. 같은 물체의 각도·거리·조명을 다양하게 수집하고, 관련 학습 사진을 보완한 뒤 고정 개발용 사진으로 비교함.'
+    };
+  }
+  if(edge>=Math.max(2,Math.ceil(positives.length*0.65))){
+    return {pattern:'가장자리 집중 (배경 가능성)',
+      hypothesis:`사진 가장자리의 특정 영역을 가리면 ${item.predicted} 확률이 떨어짐. 주변 배경이나 물체 경계가 오분류에 영향을 주었을 수 있음.`,
+      improve:`같은 ${item.actual} 물체를 다른 배경에서 촬영해 예측을 비교함. 배경이 원인이라면 학습용 ${item.actual} 사진의 배경을 다양화하고 같은 고정 개발용으로 재평가함.`};
+  }
+  if(spread){
+    return {pattern:'여러 영역에 분산 (전체 가능성)',
+      hypothesis:`여러 칸을 가렸을 때 ${item.predicted} 확률이 감소함. 사진 전체의 형태·조명·질감 등이 함께 영향을 주었을 수 있음.`,
+      improve:`동일 물체의 밝기·각도·거리 변화를 하나씩 시험함. 차이가 확인된 조건을 학습 사진에 보완하고 기존과 동일한 개발용 사진으로 검증함.`};
+  }
+  return {pattern:'일부 영역 집중 (물체/배경 확인 필요)',
+    hypothesis:`${strongest.row+1}행 ${strongest.col+1}열 주변을 가렸을 때 ${item.predicted} 확률이 가장 많이 감소함. 그 위치의 물체 표면이나 배경 특징에 모델이 반응했을 수 있음.`,
+    improve:`히트맵의 강한 칸에 실제로 무엇이 보이는지 먼저 확인함. 그 부분의 배경 또는 촬영 각도만 바꿔 예측하고, 확인된 취약 조건을 ${item.actual} 학습 사진에 보완하여 다시 평가함.`};
+}
+function occParagraph(parent,label,value){const p=document.createElement('p');const b=document.createElement('b');b.textContent=label+' ';p.append(b,document.createTextNode(value));parent.append(p);}
+function occRenderInfo(container,item,base,cells){
+  container.replaceChildren();const sorted=[...cells].sort((a,b)=>b.drop-a.drop);
+  const max=sorted[0].drop, signedChanges=cells.filter(c=>Math.abs(c.signedDrop)>=0.00005).length;
+  occParagraph(container,'원래 평가 점수:',`${formatPct(item.confidence)} (${item.predicted}, 원본 사진 평가)`);
+  occParagraph(container,'가리기 전 확률:',`${base.toFixed(4)} (${item.predicted}, 224×224 처리 기준)`);
+  occParagraph(container,'가장 많이 떨어진 칸 3개:',sorted.slice(0,3).map(c=>`${c.row+1}행 ${c.col+1}열 −${c.drop.toFixed(4)}`).join(' / '));
+  const idea=occHypothesis(item,cells,base);
+  occParagraph(container,'분포 유형(자동 추정):',idea.pattern);
+  const hypo=document.createElement('div');hypo.className='occlusion-note';
+  occParagraph(hypo,'오분류 원인 가설:',idea.hypothesis);
+  occParagraph(hypo,'모델 개선 및 확인 방법:',idea.improve);container.append(hypo);
+  if(max<0.005){const warn=document.createElement('div');warn.className='plain';warn.textContent=`주의: 모든 감소량이 작음 (최대 ${max.toFixed(6)}). 값이 0.0000으로 보이더라도 실제 확률 변화가 있었는지 확인하세요. 절댓값 0.00005 이상 변화한 칸: ${signedChanges}/36. 이 사진을 곧바로 제외하지 말고 원본 확률과 가림 방식부터 확인하세요.`;container.append(warn);}
+  else {const p=document.createElement('p');p.className='hint';p.textContent='빨간색: 선택한 클래스의 확률 감소 · 파란색: 확률 증가 · 숫자: 감소량(음수면 증가). 확률 변화는 모델의 실제 판단 근거를 확정하지 않습니다.';container.append(p);}
+  const save=document.createElement('button');save.className='secondary';save.textContent='⬇ 이 사진의 히트맵 PNG';save.addEventListener('click',()=>{
+    const canvas=container.closest('.occ-layout').querySelector('canvas');
+    canvas.toBlob(blob=>{if(blob)saveOcclusionBlob(blob,'heat_'+item.filename.replace(/\.[^.]+$/,'')+'.png')},'image/png');
+  });container.append(save);
+}
+function saveOcclusionBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);}
+async function runOcclusion(){
+  const wrong=results.filter(r=>!r.correct);
+  const runId=++occRunId;occActive=true;occRecords=[];
+  $('occlusionList').replaceChildren();$('restartOcclusion').disabled=true;$('cancelOcclusion').disabled=false;$('occlusionCsv').disabled=true;
+  $('occProgress').max=Math.max(1,wrong.length*OCC_GRID*OCC_GRID);$('occProgress').value=0;
+  if(!wrong.length){$('occStatus').textContent='오분류 사진이 없어 분석할 대상이 없습니다.';occActive=false;$('cancelOcclusion').disabled=true;return;}
+  $('occStatus').textContent=`오분류 ${wrong.length}장 자동 분석 시작 (총 ${wrong.length*36}회 가리기 예측)`;
+  let finished=0;
+  try{
+    for(let ix=0;ix<wrong.length;ix++){
+      if(runId!==occRunId)break;
+      const item=wrong[ix], ui=occMakeCard(item);
+      try{
+        const img=new Image();img.src=item.url;await img.decode();
+        if(runId!==occRunId)break;
+        drawSquare(img);
+        const imageData=occSourceCtx.getImageData(0,0,OCC_SIZE,OCC_SIZE);
+        const before=probOf(await model.predict(occSource),item.predicted);
+        const cells=[];
+        for(let row=0;row<OCC_GRID;row++)for(let col=0;col<OCC_GRID;col++){
+          if(runId!==occRunId)break;
+          // 매번 원본 224×224에서 시작하고, 딱 한 칸만 회색(128)으로 가립니다.
+          occMaskedCtx.putImageData(imageData,0,0);
+          const [x,y,w,h]=occRect(row,col);occMaskedCtx.fillStyle='rgb(128,128,128)';occMaskedCtx.fillRect(x,y,w,h);
+          const after=probOf(await model.predict(occMasked),item.predicted);
+          const signedDrop=before-after;
+          cells.push({row,col,before,after,signedDrop,drop:Math.max(0,signedDrop)});
+          finished++;$('occProgress').value=finished;
+          $('occStatus').textContent=`${ix+1}/${wrong.length}장 분석 중 · ${finished}/${wrong.length*36}칸 (${item.filename})`;
+          if(finished%3===0)await occYield();
+        }
+        if(runId!==occRunId)break;
+        occDrawHeatmap(ui.canvas,imageData,cells);
+        occRenderInfo(ui.info,item,before,cells);
+        occRecords.push({item,before,cells});
+      }catch(err){ui.info.textContent=`이 사진의 가리기 분석 실패: ${err.message}`;}
+      await occYield();
+    }
+    if(runId===occRunId)$('occStatus').textContent=`자동 분석 완료: ${occRecords.length}/${wrong.length}장. 결과를 확인하고 가설을 검증할 조건을 선택하세요.`;
+  }finally{
+    if(runId===occRunId){occActive=false;$('restartOcclusion').disabled=false;$('cancelOcclusion').disabled=true;$('occlusionCsv').disabled=!occRecords.length;}
+  }
+}
+$('cancelOcclusion').addEventListener('click',()=>{occRunId++;occActive=false;$('cancelOcclusion').disabled=true;$('restartOcclusion').disabled=false;$('occlusionCsv').disabled=!occRecords.length;$('occStatus').textContent='분석을 중단했습니다. 완료된 사진의 결과는 남아 있습니다.';});
+$('restartOcclusion').addEventListener('click',()=>{if(model&&results.length&&!occActive)runOcclusion().catch(e=>{$('occStatus').textContent='가리기 분석 오류: '+e.message;$('restartOcclusion').disabled=false;});});
+$('occlusionCsv').addEventListener('click',()=>{
+  if(!occRecords.length)return;
+  const header=['파일명','실제 클래스','잘못 예측한 클래스','원래 평가 점수','224 정사각형 원본 확률','행','열','가린 후 확률','확률 변화 (양수=감소, 음수=증가)','확률 감소량 (음수는 0)'];
+  const rows=occRecords.flatMap(r=>r.cells.map(c=>[r.item.filename,r.item.actual,r.item.predicted,r.item.confidence.toFixed(6),r.before.toFixed(6),c.row+1,c.col+1,c.after.toFixed(6),c.signedDrop.toFixed(6),c.drop.toFixed(6)]));
+  const csv='\ufeff'+[header,...rows].map(a=>a.map(csvEscape).join(',')).join('\r\n');
+  saveOcclusionBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'occlusion_wrong_photos.csv');
+});
+// ---------- 가리기 실험기 끝 ----------
+
+$('photos').addEventListener('change',e=>{occRunId++; occActive=false; $('cancelOcclusion').disabled=true; selectedFiles=[...e.target.files];$('count').textContent=`${selectedFiles.length}장 선택됨`;$('run').disabled=!selectedFiles.length;$('results').classList.add('hidden');$('restartOcclusion').disabled=true;$('occlusionCsv').disabled=true;setStatus('');});
+$('run').addEventListener('click',evaluate);$('csv').addEventListener('click',downloadCSV);
+// 초기 로딩에 실패해도 사진 선택과 재시도는 가능합니다.
+loadModel().catch(err=>{$('classNames').textContent='모델을 아직 불러오지 못했습니다: '+err.message;model=null;});
+window.addEventListener('pagehide',clearUrls);
+</script></body></html>
